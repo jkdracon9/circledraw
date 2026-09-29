@@ -404,6 +404,9 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
 
+  // 가장 가까운 격자점으로 맞추기
+  function snap(v) { return Math.round(v / CELL) * CELL; }
+
   function snapshot() { return circles.map(c => ({ ...c })); }
   function remember() { history.push(snapshot()); }
 
@@ -440,7 +443,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
       return;
     }
     remember();
-    active = { x: p.x, y: p.y, r: START_R, color, w: lineW, fill: null };
+    active = { x: snap(p.x), y: snap(p.y), r: START_R, color, w: lineW, fill: null };
     circles.push(active);
     last = performance.now();
     draw();
@@ -452,9 +455,9 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
     const dpr = window.devicePixelRatio || 1;
     const p = pos(e);
     if (!drag.moved) { history.push(drag.before); drag.moved = true; }
-    // 중심이 도화지 밖으로 나가지 않게
-    drag.c.x = Math.min(Math.max(p.x - drag.dx, 0), cv.width / dpr);
-    drag.c.y = Math.min(Math.max(p.y - drag.dy, 0), cv.height / dpr);
+    // 중심은 격자점에 맞추고, 도화지 밖으로 나가지 않게
+    drag.c.x = Math.min(Math.max(snap(p.x - drag.dx), 0), cv.width / dpr);
+    drag.c.y = Math.min(Math.max(snap(p.y - drag.dy), 0), cv.height / dpr);
     draw();
   });
 
