@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>동그라미 그림판</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap">
+<style>
+/* 레이아웃: 상단 도구막대 2줄(1줄: 색깔 · 굵기 | 사진 / 2줄: 보기 켜고 끄기 | 되돌리기 · 지우기) + 아래 모눈 도화지. 밝은 교실 톤 한 가지로 고정 */
+:root {
+  --paper: #ffffff;
+  --bar: #eef3f8;
+  --bar-line: #d5dee8;
+  --ink: #23303d;
+  --btn: #ffffff;
+  --btn-line: #c3cfdb;
+  --danger: #e0464b;
+  --photo: #2f7ad6;
+  --font: "Jua", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  color-scheme: light;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.bar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bar);
+  border-bottom: 2px solid var(--bar-line);
+}
+.line { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.line2 { flex-wrap: wrap; }
+.group { display: flex; align-items: center; gap: 8px; }
+.sep { width: 2px; align-self: stretch; background: var(--bar-line); margin: 4px 4px; flex: none; }
+.push { margin-left: auto; }
+.colors {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 5px;
+  min-width: 0;
+  scrollbar-width: none;
+}
+.colors::-webkit-scrollbar { display: none; }
+.swatch {
+  flex: none;
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  border: 4px solid var(--btn);
+  box-shadow: 0 0 0 2px var(--btn-line);
+  background: var(--c);
+  cursor: pointer;
+  transition: transform .12s;
+}
+.swatch[aria-pressed="true"] { transform: scale(1.12); box-shadow: 0 0 0 4px var(--ink); }
+.btn {
+  flex: none;
+  display: flex; align-items: center; gap: 8px;
+  height: 56px;
+  padding: 0 18px;
+  border-radius: 16px;
+  border: 2px solid var(--btn-line);
+  background: var(--btn);
+  color: var(--ink);
+  font: inherit;
+  font-size: 22px;
+  cursor: pointer;
+}
+.btn:active { transform: translateY(2px); }
+.btn:focus-visible, .swatch:focus-visible { outline: 3px solid var(--photo); outline-offset: 3px; }
+.btn svg { width: 28px; height: 28px; }
+.btn:disabled { opacity: .45; cursor: default; }
+.bar .btn {
+  flex-direction: column; justify-content: center; gap: 2px;
+  height: 58px; min-width: 64px; padding: 0 10px;
+  font-size: 15px;
+}
+.bar .thick { min-width: 52px; }
+.clear { color: var(--danger); border-color: var(--danger); }
+.photo { background: var(--photo); border-color: var(--photo); color: #fff; }
+.toggle[aria-pressed="true"], .thick[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+.stage { flex: 1; position: relative; min-height: 0; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
+
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(20, 30, 40, .55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  z-index: 10;
+}
+.panel {
+  background: var(--paper);
+  border-radius: 24px;
+  padding: 24px;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  text-align: center;
+}
+.panel p { margin: 0; font-size: 26px; }
+.panel .hint { font-size: 18px; color: #5a6875; }
+.panel img {
+  max-width: min(640px, 100%);
+  max-height: 55vh;
+  border: 2px solid var(--bar-line);
+  border-radius: 12px;
+  -webkit-touch-callout: default;
+  -webkit-user-select: auto; user-select: auto;
+}
+.row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+.yes { background: var(--danger); border-color: var(--danger); color: #fff; }
+@media (max-width: 560px) {
+  .bar .btn span { display: none; }
+  .bar .btn { min-width: 48px; height: 48px; padding: 0 8px; }
+  .swatch { width: 40px; height: 40px; }
+  .sep { display: none; }
+}
+</style>
+
+<div class="bar">
+  <div class="line">
+    <div class="colors" id="colors" role="group" aria-label="색깔 고르기"></div>
+    <div class="sep"></div>
+    <div class="group" role="group" aria-label="선 굵기">
+      <button class="btn thick" type="button" data-w="2" aria-pressed="false" aria-label="가는 선">
+        <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>가늘게</span>
+      </button>
+      <button class="btn thick" type="button" data-w="4" aria-pressed="true" aria-label="보통 선">
+        <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg><span>보통</span>
+      </button>
+      <button class="btn thick" type="button" data-w="9" aria-pressed="false" aria-label="굵은 선">
+        <svg viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="7" stroke-linecap="round"/></svg><span>굵게</span>
+      </button>
+    </div>
+    <button class="btn photo push" id="photoBtn" type="button" aria-label="사진 찍기">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+      <span>사진 찍기</span>
+    </button>
+  </div>
+  <div class="line line2">
+    <div class="group" role="group" aria-label="보기">
+      <button class="btn toggle" id="centerBtn" type="button" aria-pressed="false" aria-label="중심 보기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/></svg>
+        <span>중심</span>
+      </button>
+      <button class="btn toggle" id="radiusBtn" type="button" aria-pressed="false" aria-label="반지름 보기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="12" x2="18.4" y2="5.6" stroke-dasharray="2.2 2.2" stroke-linecap="butt"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>
+        <span>반지름</span>
+      </button>
+      <button class="btn toggle" id="diameterBtn" type="button" aria-pressed="false" aria-label="지름 보기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>
+        <span>지름</span>
+      </button>
+      <button class="btn toggle" id="gridBtn" type="button" aria-pressed="true" aria-label="모눈 보기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
+        <span>모눈</span>
+      </button>
+    </div>
+    <div class="sep"></div>
+    <div class="group">
+      <button class="btn" id="undoBtn" type="button" aria-label="되돌리기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
+        <span>되돌리기</span>
+      </button>
+      <button class="btn clear" id="clearBtn" type="button" aria-label="모두 지우기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+        <span>모두 지우기</span>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="stage" id="stage"><canvas id="cv"></canvas></div>
+
+<div class="overlay" id="askClear" hidden>
+  <div class="panel">
+    <p>그린 원을 모두 지울까요?</p>
+    <div class="row">
+      <button class="btn yes" id="clearYes" type="button">네, 지울래요</button>
+      <button class="btn" id="clearNo" type="button">아니요</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="shot" hidden>
+  <div class="panel">
+    <p>찰칵! 사진이 만들어졌어요</p>
+    <img id="shotImg" alt="내가 그린 동그라미 그림">
+    <p class="hint" id="shotHint">‘저장하기’를 누르세요</p>
+    <div class="row">
+      <button class="btn photo" id="shotSave" type="button">저장하기</button>
+      <button class="btn" id="shotClose" type="button">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const COLORS = ["#e53935", "#fb8c00", "#f2c200", "#43a047", "#1e88e5", "#8e24aa", "#ec407a", "#212121"];
+  const NAMES  = ["빨강", "주황", "노랑", "초록", "파랑", "보라", "분홍", "검정"];
+  const GROW = 40;        // 1초에 반지름이 커지는 크기(px)
+  const START_R = 4;
+  const CELL = 20;        // 모눈 한 칸(px)
+
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+  const stage = document.getElementById("stage");
+  const circles = [];
+  let color = COLORS[0];
+  let lineW = 4;
+  let active = null;      // 지금 커지고 있는 원
+  let activeId = null;    // 한 번에 하나의 손가락/마우스만
+  let last = 0;
+  const show = { center: false, radius: false, diameter: false, grid: true };
+
+  // 색깔 버튼
+  const box = document.getElementById("colors");
+  COLORS.forEach((c, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "swatch";
+    b.style.setProperty("--c", c);
+    b.setAttribute("aria-label", NAMES[i]);
+    b.setAttribute("aria-pressed", i === 0 ? "true" : "false");
+    b.addEventListener("click", () => {
+      color = c;
+      box.querySelectorAll(".swatch").forEach(s => s.setAttribute("aria-pressed", "false"));
+      b.setAttribute("aria-pressed", "true");
+    });
+    box.appendChild(b);
+  });
+
+  // 굵기 버튼
+  const thicks = document.querySelectorAll(".thick");
+  thicks.forEach(b => b.addEventListener("click", () => {
+    lineW = Number(b.dataset.w);
+    thicks.forEach(t => t.setAttribute("aria-pressed", String(t === b)));
+  }));
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const r = stage.getBoundingClientRect();
+    cv.width = Math.round(r.width * dpr);
+    cv.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+
+  function grid(w, h) {
+    for (let i = 0, x = 0; x <= w; i++, x += CELL) {
+      ctx.strokeStyle = i % 5 === 0 ? "#b9d3ea" : "#e2edf7";
+      ctx.lineWidth = i % 5 === 0 ? 1.2 : 1;
+      ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, h); ctx.stroke();
+    }
+    for (let i = 0, y = 0; y <= h; i++, y += CELL) {
+      ctx.strokeStyle = i % 5 === 0 ? "#b9d3ea" : "#e2edf7";
+      ctx.lineWidth = i % 5 === 0 ? 1.2 : 1;
+      ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(w, y + .5); ctx.stroke();
+    }
+  }
+
+  // 길이를 모눈 칸 수로: 소수 첫째 자리까지, .0은 빼기
+  function cells(px) {
+    const v = Math.round(px / CELL * 10) / 10;
+    return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + "칸";
+  }
+
+  function label(text, x, y, col) {
+    ctx.font = '16px "Jua", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+    const tw = ctx.measureText(text).width;
+    const pw = tw + 14, ph = 24;
+    const bx = x - pw / 2, by = y - ph / 2;
+    ctx.fillStyle = "rgba(255,255,255,.92)";
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(bx, by, pw, ph, 8); else ctx.rect(bx, by, pw, ph);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = col;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x, y + 1);
+  }
+
+  function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    const w = cv.width / dpr, h = cv.height / dpr;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, w, h);
+    if (show.grid) grid(w, h);
+
+    for (const c of circles) {
+      ctx.strokeStyle = c.color;
+      ctx.lineWidth = c.w;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    const labels = [];
+    for (const c of circles) {
+      ctx.strokeStyle = c.color;
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      if (show.diameter) {
+        ctx.beginPath();
+        ctx.moveTo(c.x - c.r, c.y); ctx.lineTo(c.x + c.r, c.y);
+        ctx.stroke();
+        if (c.r >= 18) labels.push(["지름 " + cells(c.r * 2), c.x - c.r / 2, c.y + 18, c.color]);
+      }
+      if (show.radius) {
+        const a = -Math.PI / 4;              // 오른쪽 위 방향
+        const ex = c.x + Math.cos(a) * c.r, ey = c.y + Math.sin(a) * c.r;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.moveTo(c.x, c.y); ctx.lineTo(ex, ey);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        if (c.r >= 18) labels.push(["반지름 " + cells(c.r), (c.x + ex) / 2 + 10, (c.y + ey) / 2 - 14, c.color]);
+      }
+      if (show.center || show.radius || show.diameter) {
+        ctx.fillStyle = c.color;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, show.center ? 5 : 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    for (const l of labels) label(l[0], l[1], l[2], l[3]);
+    syncUndo();
+  }
+
+  function tick(t) {
+    if (!active) return;
+    const dt = Math.min((t - last) / 1000, 0.1);
+    last = t;
+    active.r += GROW * dt;
+    draw();
+    requestAnimationFrame(tick);
+  }
+
+  function pos(e) {
+    const r = cv.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  cv.addEventListener("pointerdown", e => {
+    if (activeId !== null) return;               // 두 번째 손가락은 무시
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.preventDefault();
+    activeId = e.pointerId;
+    try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    const p = pos(e);
+    active = { x: p.x, y: p.y, r: START_R, color, w: lineW };
+    circles.push(active);
+    last = performance.now();
+    draw();
+    requestAnimationFrame(tick);
+  });
+
+  function stop(e) {
+    if (e.pointerId !== activeId) return;
+    active = null;
+    activeId = null;
+    draw();
+  }
+  cv.addEventListener("pointerup", stop);
+  cv.addEventListener("pointercancel", stop);
+  cv.addEventListener("contextmenu", e => e.preventDefault());
+
+  // 보기 켜기/끄기 (중심 · 반지름 · 지름 · 모눈)
+  [["centerBtn", "center"], ["radiusBtn", "radius"], ["diameterBtn", "diameter"], ["gridBtn", "grid"]].forEach(([id, key]) => {
+    const b = document.getElementById(id);
+    b.onclick = () => {
+      show[key] = !show[key];
+      b.setAttribute("aria-pressed", String(show[key]));
+      draw();
+    };
+  });
+
+  // 되돌리기: 가장 최근에 그린 원 하나 지우기
+  const undoBtn = document.getElementById("undoBtn");
+  function syncUndo() { undoBtn.disabled = circles.length === 0 || active !== null; }
+  undoBtn.onclick = () => {
+    if (active || circles.length === 0) return;
+    circles.pop();
+    draw();
+  };
+
+  // 모두 지우기
+  const ask = document.getElementById("askClear");
+  document.getElementById("clearBtn").onclick = () => { ask.hidden = false; };
+  document.getElementById("clearNo").onclick = () => { ask.hidden = true; };
+  document.getElementById("clearYes").onclick = () => {
+    circles.length = 0; active = null; activeId = null;
+    draw(); ask.hidden = true;
+  };
+
+  // 사진 찍기
+  const shot = document.getElementById("shot");
+  const saveBtn = document.getElementById("shotSave");
+  const hint = document.getElementById("shotHint");
+  let downloads = null;
+  let lastUrl = "";
+  const p2 = n => String(n).padStart(2, "0");
+  function fileName() {
+    const d = new Date();
+    return "동그라미_" + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + "_" + p2(d.getHours()) + p2(d.getMinutes()) + p2(d.getSeconds()) + ".png";
+  }
+  if (window.claude && window.claude.use) {
+    window.claude.use("downloads").then(d => { downloads = d; }).catch(() => {});
+  }
+  document.getElementById("photoBtn").onclick = () => {
+    draw();
+    lastUrl = cv.toDataURL("image/png");
+    document.getElementById("shotImg").src = lastUrl;
+    hint.textContent = "‘저장하기’를 누르세요";
+    saveBtn.disabled = false;
+    shot.hidden = false;
+  };
+  saveBtn.onclick = async () => {
+    const name = fileName();
+    if (downloads) {
+      try {
+        const blob = await new Promise(res => cv.toBlob(res, "image/png"));
+        await downloads.save({ filename: name, data: blob });
+        hint.textContent = "저장했어요!";
+        saveBtn.disabled = true;
+      } catch (err) {
+        hint.textContent = (err && err.code === "declined")
+          ? "저장하지 않았어요. 다시 누를 수 있어요."
+          : "여기서는 저장이 안 돼요. 사진을 꾹 눌러(컴퓨터는 오른쪽 클릭) 저장하세요.";
+      }
+      return;
+    }
+    // 일반 브라우저에서 파일을 직접 열었을 때
+    const a = document.createElement("a");
+    a.href = lastUrl; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    hint.textContent = "저장했어요! 안 되면 사진을 꾹 눌러(컴퓨터는 오른쪽 클릭) 저장하세요.";
+  };
+  document.getElementById("shotClose").onclick = () => { shot.hidden = true; };
+
+  window.addEventListener("resize", resize);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+  resize();
+})();
+</script>
