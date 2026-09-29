@@ -36,8 +36,8 @@ body {
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 6px;
+  padding: 6px 16px;
   background: var(--bar);
   border-bottom: 2px solid var(--bar-line);
 }
@@ -57,9 +57,9 @@ body {
 .colors::-webkit-scrollbar { display: none; }
 .swatch {
   flex: none;
-  width: 48px; height: 48px;
+  width: 38px; height: 38px;
   border-radius: 50%;
-  border: 4px solid var(--btn);
+  border: 3px solid var(--btn);
   box-shadow: 0 0 0 2px var(--btn-line);
   background: var(--c);
   cursor: pointer;
@@ -84,14 +84,17 @@ body {
 .btn svg { width: 28px; height: 28px; }
 .btn:disabled { opacity: .45; cursor: default; }
 .bar .btn {
-  flex-direction: column; justify-content: center; gap: 2px;
-  height: 58px; min-width: 64px; padding: 0 10px;
-  font-size: 15px;
+  flex-direction: column; justify-content: center; gap: 1px;
+  height: 46px; min-width: 54px; padding: 0 8px;
+  border-radius: 12px;
+  font-size: 13px;
 }
-.bar .thick { min-width: 52px; }
+.bar .btn svg { width: 22px; height: 22px; }
+.bar .thick { min-width: 46px; }
 .clear { color: var(--danger); border-color: var(--danger); }
 .photo { background: var(--photo); border-color: var(--photo); color: #fff; }
 .toggle[aria-pressed="true"], .thick[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+.mode[aria-pressed="true"] { background: var(--photo); border-color: var(--photo); color: #fff; }
 .stage { flex: 1; position: relative; min-height: 0; }
 canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
 .credit {
@@ -99,6 +102,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
   font-size: 12px; color: #8a97a4;
   background: rgba(255,255,255,.8); padding: 2px 6px; border-radius: 6px;
   pointer-events: none;
+  max-width: calc(100% - 20px); text-align: right;
 }
 
 .overlay {
@@ -129,10 +133,13 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
 }
 .row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
 .yes { background: var(--danger); border-color: var(--danger); color: #fff; }
+@media (max-width: 900px) {
+  .colors { gap: 7px; }
+}
 @media (max-width: 560px) {
   .bar .btn span { display: none; }
-  .bar .btn { min-width: 48px; height: 48px; padding: 0 8px; }
-  .swatch { width: 40px; height: 40px; }
+  .bar .btn { min-width: 44px; height: 44px; padding: 0 6px; }
+  .swatch { width: 34px; height: 34px; }
   .sep { display: none; }
 }
 </style>
@@ -158,6 +165,21 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
     </button>
   </div>
   <div class="line line2">
+    <div class="group" role="group" aria-label="하는 일">
+      <button class="btn mode" type="button" data-mode="draw" aria-pressed="true" aria-label="원 그리기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="13" r="7.5"/><path d="M19 2v6M16 5h6"/></svg>
+        <span>그리기</span>
+      </button>
+      <button class="btn mode" type="button" data-mode="select" aria-pressed="false" aria-label="원 선택해서 옮기기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>
+        <span>선택</span>
+      </button>
+      <button class="btn mode" type="button" data-mode="fill" aria-pressed="false" aria-label="원 안 색칠하기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.5" fill="currentColor" stroke="none"/></svg>
+        <span>색칠</span>
+      </button>
+    </div>
+    <div class="sep"></div>
     <div class="group" role="group" aria-label="보기">
       <button class="btn toggle" id="centerBtn" type="button" aria-pressed="false" aria-label="중심 보기">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/></svg>
@@ -189,7 +211,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
     </div>
   </div>
 </div>
-<div class="stage" id="stage"><canvas id="cv"></canvas><div class="credit">Copyright © 2026 jkdracon9. All rights reserved. · 글꼴: 주아 (SIL OFL 1.1)</div></div>
+<div class="stage" id="stage"><canvas id="cv"></canvas><div class="credit">Copyright © 2026 jkdracon9. All rights reserved.</div></div>
 
 <div class="overlay" id="askClear" hidden>
   <div class="panel">
@@ -230,6 +252,10 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
   let active = null;      // 지금 커지고 있는 원
   let activeId = null;    // 한 번에 하나의 손가락/마우스만
   let last = 0;
+  let mode = "draw";      // draw 그리기 · select 선택(옮기기) · fill 색칠
+  let selected = null;    // 선택 모드에서 고른 원
+  let drag = null;        // 옮기는 중인 원과 잡은 위치
+  const history = [];     // 되돌리기용: 바꾸기 전 원 목록
   const show = { center: false, radius: false, diameter: false, grid: true };
 
   // 색깔 버튼
@@ -301,7 +327,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
     ctx.fillText(text, x, y + 1);
   }
 
-  function draw() {
+  function draw(forPhoto) {
     const dpr = window.devicePixelRatio || 1;
     const w = cv.width / dpr, h = cv.height / dpr;
     ctx.fillStyle = "#ffffff";
@@ -309,11 +335,27 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
     if (show.grid) grid(w, h);
 
     for (const c of circles) {
-      ctx.strokeStyle = c.color;
-      ctx.lineWidth = c.w;
       ctx.beginPath();
       ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+      if (c.fill) {                          // 모눈과 선이 비치도록 연하게 칠하기
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = c.fill;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      ctx.strokeStyle = c.color;
+      ctx.lineWidth = c.w;
       ctx.stroke();
+    }
+
+    if (selected && !forPhoto) {             // 고른 원 둘레에 파란 점선
+      ctx.strokeStyle = "#2f7ad6";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 6]);
+      ctx.beginPath();
+      ctx.arc(selected.x, selected.y, selected.r + selected.w / 2 + 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
 
     const labels = [];
@@ -362,6 +404,19 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
 
+  function snapshot() { return circles.map(c => ({ ...c })); }
+  function remember() { history.push(snapshot()); }
+
+  // 누른 곳을 품은 원 중 가장 작은 원(겹쳐 있으면 안쪽 원이 먼저)
+  function pick(p, edge) {
+    let best = null;
+    for (const c of circles) {
+      const d = Math.hypot(p.x - c.x, p.y - c.y);
+      if (d <= c.r + (edge ? Math.max(10, c.w) : 0) && (!best || c.r < best.r)) best = c;
+    }
+    return best;
+  }
+
   cv.addEventListener("pointerdown", e => {
     if (activeId !== null) return;               // 두 번째 손가락은 무시
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -369,17 +424,45 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
     activeId = e.pointerId;
     try { cv.setPointerCapture(e.pointerId); } catch (_) {}
     const p = pos(e);
-    active = { x: p.x, y: p.y, r: START_R, color, w: lineW };
+    if (mode === "select") {
+      selected = pick(p, true);
+      if (selected) drag = { c: selected, dx: p.x - selected.x, dy: p.y - selected.y, before: snapshot(), moved: false };
+      draw();
+      return;
+    }
+    if (mode === "fill") {
+      const c = pick(p, false);
+      if (c) {
+        remember();
+        c.fill = c.fill === color ? null : color;  // 같은 색으로 한 번 더 누르면 색 빼기
+        draw();
+      }
+      return;
+    }
+    remember();
+    active = { x: p.x, y: p.y, r: START_R, color, w: lineW, fill: null };
     circles.push(active);
     last = performance.now();
     draw();
     requestAnimationFrame(tick);
   });
 
+  cv.addEventListener("pointermove", e => {
+    if (e.pointerId !== activeId || !drag) return;
+    const dpr = window.devicePixelRatio || 1;
+    const p = pos(e);
+    if (!drag.moved) { history.push(drag.before); drag.moved = true; }
+    // 중심이 도화지 밖으로 나가지 않게
+    drag.c.x = Math.min(Math.max(p.x - drag.dx, 0), cv.width / dpr);
+    drag.c.y = Math.min(Math.max(p.y - drag.dy, 0), cv.height / dpr);
+    draw();
+  });
+
   function stop(e) {
     if (e.pointerId !== activeId) return;
     active = null;
     activeId = null;
+    drag = null;
     draw();
   }
   cv.addEventListener("pointerup", stop);
@@ -396,12 +479,24 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
     };
   });
 
-  // 되돌리기: 가장 최근에 그린 원 하나 지우기
+  // 하는 일 고르기: 그리기 · 선택 · 색칠
+  const modes = document.querySelectorAll(".mode");
+  modes.forEach(b => b.addEventListener("click", () => {
+    mode = b.dataset.mode;
+    modes.forEach(m => m.setAttribute("aria-pressed", String(m === b)));
+    selected = null;
+    cv.style.cursor = mode === "select" ? "move" : mode === "fill" ? "pointer" : "crosshair";
+    draw();
+  }));
+  cv.style.cursor = "crosshair";
+
+  // 되돌리기: 바로 전에 한 일(그리기 · 옮기기 · 색칠 · 모두 지우기) 하나 되돌리기
   const undoBtn = document.getElementById("undoBtn");
-  function syncUndo() { undoBtn.disabled = circles.length === 0 || active !== null; }
+  function syncUndo() { undoBtn.disabled = history.length === 0 || activeId !== null; }
   undoBtn.onclick = () => {
-    if (active || circles.length === 0) return;
-    circles.pop();
+    if (activeId !== null || history.length === 0) return;
+    circles.splice(0, circles.length, ...history.pop());
+    selected = null;
     draw();
   };
 
@@ -410,7 +505,8 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
   document.getElementById("clearBtn").onclick = () => { ask.hidden = false; };
   document.getElementById("clearNo").onclick = () => { ask.hidden = true; };
   document.getElementById("clearYes").onclick = () => {
-    circles.length = 0; active = null; activeId = null;
+    if (circles.length) remember();
+    circles.length = 0; active = null; activeId = null; drag = null; selected = null;
     draw(); ask.hidden = true;
   };
 
@@ -429,8 +525,9 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
     window.claude.use("downloads").then(d => { downloads = d; }).catch(() => {});
   }
   document.getElementById("photoBtn").onclick = () => {
-    draw();
+    draw(true);                              // 선택 점선은 사진에 넣지 않기
     lastUrl = cv.toDataURL("image/png");
+    draw();
     document.getElementById("shotImg").src = lastUrl;
     hint.textContent = "‘저장하기’를 누르세요";
     saveBtn.disabled = false;
